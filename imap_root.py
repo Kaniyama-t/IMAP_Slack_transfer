@@ -20,6 +20,7 @@ def mailCheckAndProcess(session):
     ## Flagがついてないメールの番号を取得
     mails=session.getNoFlaggedMail()
     ## 各メールについて処理
+    
     for i in mails[0].split():
         ## メールを取得
         mail=session.getMailDetail(i)
@@ -39,6 +40,7 @@ def mailCheckAndProcess(session):
                     mailsub = mail['Subject'],
                     mailbody = mail['Body']
                 )
+    
 
 ## めんどい色々
 for sections in addressList.items():
