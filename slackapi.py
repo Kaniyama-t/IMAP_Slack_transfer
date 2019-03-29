@@ -77,10 +77,8 @@ class SlackPoster():
         mailTo_display = mailToAdd
         if mailFromName != '':
             mailFrom_display = mailFromName+" ("+mailFromAdd+")"
-            #mailFromName = " ("+ mailFromName+")"
         if mailToName != '':
-            mailFrom_display = mailToName+" <"+mailToAdd+">"
-            #mailToName = " <"+ mailToName+">"
+            mailTo_display = mailToName+" <"+mailToAdd+">"
         # PostMessage時オプションの初期化
         PostUserIcon = ''
         PostUserName = 'メール転送'
