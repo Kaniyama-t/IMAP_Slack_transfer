@@ -16,3 +16,9 @@ class IMAPCommandError(Error):
         self.command = causeCommand
         self.message = message
         
+
+class SlackPostError(Error):
+    def __init__(self, responce, msg="SlackAPIがエラーを返しました"):
+        self.responce = responce
+        self.message=msg
+

@@ -2,6 +2,7 @@ import ssl
 from imaplib import IMAP4_SSL
 import email
 from email.header import decode_header, make_header
+from email.policy import default
 import configparser
 import quopri
 import base64
@@ -56,7 +57,7 @@ class IMAPConnection():
         print("getNoFlaggedMail")
 
         # == 未送信メール(no-Flagged)を検索
-        typ,msgnums = self.ImapInstance.uid('SEARCH',None,'(UNKEYWORD "POSTED_Slack")')
+        typ,msgnums = self.ImapInstance.uid('SEARCH',None,'(UNKEYWORD "_POSTED_SLACK")')
         if typ != 'OK':
             raise IMAPCommandError('search', 'I cannot get no-Flagged Mail.'+'\n responce: '+typ)
         
@@ -72,6 +73,7 @@ class IMAPConnection():
             raise IMAPCommandError('search', 'I cannot get Mail data of number'+mailId+"."+'\n responce: '+typ)
     
         ## ログ出力ぅ
+        """
         print('mail['+str(mailId)+']')
         for i in range(len(data)):
             for j in range(len(data[i])):
@@ -79,32 +81,73 @@ class IMAPConnection():
                     print("data["+str(i)+"]"+"["+str(j)+"]"+str(data[i][j].decode('iso2022_jp')))
                 else:
                     print("data["+str(i)+"]"+"["+str(j)+"]"+str(data[i][j]))
+        """
+        
 
         ## emailライブラリに渡す
         email_message = email.message_from_bytes(data[0][1])
-
-        ## 本文抽出
+        
+        ## データ抽出
+        ### From
+        From_Address = str(make_header(decode_header(email_message['From'])))
+        From_Name = ''
+        if "<" in From_Address:
+            tmp_f = From_Address.split("<")
+            From_Name = tmp_f[0]
+            From_Address = tmp_f[1].split(">")[0]
+        ### To
+        To_Address = str(make_header(decode_header(email_message['To'])))
+        To_Name = ''
+        if "<" in To_Address:
+            tmp_t = To_Address.split("<")
+            To_Name = tmp_t[0]
+            To_Address = tmp_t[1].split(">")[0]
+        ### Subject
+        Subject = str(make_header(decode_header(email_message['Subject'])))
+        ### 本文抽出
         body = ''
-        if email_message.is_multipart() == False: # シングルパート
-            byt  = bytearray(email_message.get_payload(), 'iso2022_jp')
-            body = byt.decode(encoding='iso2022_jp')
-        else:   # マルチパート
-            prt  = email_message.get_payload()[0]
-            byt  = prt.get_payload(decode=True)
-            body = byt.decode(encoding='iso2022_jp')
+        ## TODO ここ↓
+        SucceedFlag = False
+        try:
+            if email_message.is_multipart() == False: # シングルパート
+                print("シングルパート")
+                byt  = bytearray(email_message.get_payload(), 'iso2022_jp')
+                body = byt.decode(encoding='iso2022_jp')
+            else:   # マルチパート
+                print("マルチパート")
+                prt  = email_message.get_payload()[0]
+                byt  = prt.get_payload(decode=True)
+                body = byt.decode(encoding='iso2022_jp')
+            SucceedFlag = True
+        except Exception as err_inst:
+            body = 'メールを受信しましたが変換できませんでした\n\nエラーログ:\n' + str(err_inst)
+            print(str(err_inst))
 
         #TODO ここ埋めれるように頑張る
-        result['UID']=str(mailId)
-        result['Subject']=str(make_header(decode_header(email_message['Subject'])))
+        result['Succeed']=SucceedFlag
+        result['UID']=mailId.hex()
+        result['Subject']=Subject
         result['Body']=body
-        result['From_Address']=str(make_header(decode_header(email_message['From'])))
-        result['From_Name']=""
-        result['To_Address']=str(make_header(decode_header(email_message['To'])))
-        result['To_Name']=""
+        result['From_Address']=From_Address
+        result['From_Name']=From_Name
+        result['To_Address']=To_Address
+        result['To_Name']=To_Name
         return result
     
     def addFlagToMail(self,mailId,flag):
-        self.ImapInstance.store(mailId, '+FLAGS', '\\'+flag)
+        typ,d = self.ImapInstance.uid('store',mailId, '+FLAGS', '\\'+flag+'')
+        print('addFragToMail typ:'+str(typ))
+        print('addFragToMail d:'+str(d))
+        if typ != 'OK':
+            raise IMAPCommandError('store', 'I cannot add Flag "' + str(flag) + '" of mail number'+str(mailId)+"."+'\n responce: '+str(d))
+
+
+    def commitFrags(self):
+        typ,d=self.ImapInstance.expunge()
+        print('commitFrags typ:'+str(typ))
+        print('commitFrags d:'+str(d))
+        if typ != 'OK':
+            raise IMAPCommandError('expunge', 'I cannot commit Flags of mail.\n responce: '+str(d))
     
     def boxlist(self):
         return self.ImapInstance.list()
