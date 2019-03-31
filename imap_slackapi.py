@@ -33,12 +33,6 @@ class SlackPoster():
             req["attachments"] = attachments
         ressrc = requests.post("https://slack.com/api/chat.postMessage", data=json.dumps(req), headers=headers)
         res = ressrc.json()
-        print('[IMAP_transfar_SlackPost] Query sended to chat.postMessage')
-        print('                           State:'+str(res['ok']))
-        print('                           Channel:'+res['channel'])
-        print('                           ts:'+res['ts'])
-        #print('                           message:'+str(res['message']))
-        print('')
         if res['ok'] != True:
             raise imap_errors.SlackPostError(res)
         
@@ -54,6 +48,7 @@ class SlackPoster():
         {
             "fallback": mailbody,
             "color": '',
+            "callback_id": '',
             "author_name": '',
             "author_link": '',
             #"author_icon": "https://pbs.twimg.com/profile_images/1068841466988920832/wMIpsqCY.jpg",
@@ -91,6 +86,7 @@ class SlackPoster():
             # TODO ここに
             PostStateText = '<@channel> `メールを受信しました'
             PostUserIcon = 'https://takuma-isec.sakura.ne.jp/kaniyama_t/slackapp/src/imaptrans_received.png'
+            postBody[0]['callback_id'] = 'imaptransfar_received'
             postBody[0]['color'] = "#36a64f"
             postBody[0]['author_name'] = mailFrom_display
             postBody[0]['author_link'] = 'mailto:'+mailFromAdd
@@ -105,6 +101,7 @@ class SlackPoster():
         elif mailBoxName == 'INBOX.Sent':
             PostStateText = '<@channel> `メールの送信を検知しました'
             PostUserIcon = 'https://takuma-isec.sakura.ne.jp/kaniyama_t/slackapp/src/imaptrans_sended.png'
+            postBody[0]['callback_id'] = 'imaptransfar_sent'
             postBody[0]['color'] = "#ffff00"
             postBody[0]['author_name'] = mailTo_display
             postBody[0]['author_link'] = 'mailto:'+mailToAdd
@@ -112,6 +109,7 @@ class SlackPoster():
 
         if succeedState != True:
             PostStateText = PostStateText+"が、正常にメールを読み込めませんでした"
+            postBody[0]['callback_id'] = postBody[0]['callback_id'] + '_ERROR'
             postBody[0]['color'] = "#ff0000"
             
         
